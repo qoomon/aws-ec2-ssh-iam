@@ -1,11 +1,13 @@
 # AWS IAM managed EC2 SSH access
 
 <img src="docs/aws-icon.png" width="256"/>
-<img src="docs/aws-iam-icon.png" width="128"/> **>**
-<img src="docs/aws-lambda-icon.png" width="128"/> **>**
-<img src="docs/aws-s3-icon.png" width="128"/> **>**
-<img src="docs/aws-ec2-icon.png" width="128"/> **>**
+
+<img src="docs/aws-iam-icon.png" width="128"/><span>⇨</span>
+<img src="docs/aws-lambda-icon.png" width="128"/><span>⇨</span>
+<img src="docs/aws-s3-icon.png" width="128"/><span>⇨</span>
+<img src="docs/aws-ec2-icon.png" width="128"/><span>⇨</span>
 <img src="docs/ssh-icon.png" width="128"/>
+
 
 
 ## Setup AWS IAM Account
