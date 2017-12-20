@@ -8,8 +8,6 @@
 <img src="docs/aws-ec2-icon.png" width="128"/><span>⇨</span>
 <img src="docs/ssh-icon.png" width="128"/>
 
-
-
 ## Setup AWS IAM Account
 
 ### Preparation
