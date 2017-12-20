@@ -1,0 +1,43 @@
+service: iam
+
+provider:
+  name: aws
+  region: eu-central-1
+  
+  stage: prod
+  runtime: nodejs6.10
+  
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - "iam:Get*"
+        - "iam:List*"
+      Resource: "*"
+    - Effect: "Allow"
+      Action:
+        - "s3:ListBucket"
+        - "s3:PutObject"
+        - "s3:GetObject"
+        - "s3:DeleteObject"
+      Resource: 
+        - "arn:aws:s3:::<S3Bucket>"
+        - "arn:aws:s3:::<S3Bucket>/*"
+
+package:
+  individually: true
+  
+functions:
+  syncSSHKeysToS3:
+    memorySize: 128
+    timeout: 60 
+    handler: handler.syncSSHKeysToS3
+    package:
+      exclude:
+        - ./**
+      include:
+        - handler.js
+    environment:
+      S3_BUCKET: <S3Bucket>
+    events:            
+      - schedule: rate(5 minute)
+    
