@@ -2,10 +2,7 @@
 
 <img src="docs/aws-icon.png" width="256"/>
 
-<img src="docs/aws-iam-icon.png" width="128"/><img src="docs/arrow-right.png" height="128" width="24" style="margin-bottom: 50px;"/>
-<img src="docs/aws-lambda-icon.png" width="128"/><img src="docs/arrow-right.png" height="128" width="24"/>
-<img src="docs/aws-s3-icon.png" width="128"/><img src="docs/arrow-right.png" height="128" width="24"/>
-<img src="docs/aws-ec2-icon.png" width="128"/>
+<img src="docs/aws-iam-icon.png" height="128"/><img src="docs/arrow-right.png" height="128"/><img src="docs/aws-lambda-icon.png" width="128"/><img src="docs/arrow-right.png" height="128"/><img src="docs/aws-s3-icon.png" height="128"/><img src="docs/arrow-right.png" height="128"/><img src="docs/aws-ec2-icon.png" height="128"/>
 
 ## Setup AWS IAM Account
 
