@@ -1,5 +1,8 @@
 # AWS IAM managed EC2 SSH access <img src="docs/aws-icon.png" width="64"/>
 
+This approach will sync puplic ssh keys for user and groups from IAM account to an S3 bucket as authorized_keys files.
+On the ssh daemon side AuthorizedKeysCommand is used to request authorized keys from S3 bucket on demand on ssh connection establishment.
+So you can manage all ssh key access to your instances via IAM.
 
 <img src="docs/aws-iam-icon.png" height="128"/><img src="docs/arrow-right.png" height="128"/><img src="docs/aws-lambda-icon.png" width="128"/><img src="docs/arrow-right.png" height="128"/><img src="docs/aws-s3-icon.png" height="128"/><img src="docs/arrow-right.png" height="128"/><img src="docs/aws-ec2-icon.png" height="128"/>
 
