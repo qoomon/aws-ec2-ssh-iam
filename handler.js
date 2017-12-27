@@ -20,7 +20,7 @@ let getAuthorizedKeysForUser = (userName) => {
             SSHPublicKeyId: key.SSHPublicKeyId
           }).promise()
           .then(function(data) {
-            return 'environment="SSH_USER=' + key.UserName + '"' +
+            return 'environment="SSH_KEY_OWNER=' + key.UserName + '"' +
               ' ' + data.SSHPublicKey.SSHPublicKeyBody + ' ' + key.UserName;
           });
       }));
@@ -51,8 +51,8 @@ let getAuthorizedKeysForPrincipal = (principal) => {
 };
 
 let deletePricicipalsKeys = (principalList) => {
-  console.log("Delete authorized keys for principal: " + principalList);
   if (principalList.length) {
+    principalList.forEach(principal => console.log("Delete authorized keys for principal: " + principal));
     return S3.deleteObjects({
       Bucket: s3Bucket,
       Delete: {

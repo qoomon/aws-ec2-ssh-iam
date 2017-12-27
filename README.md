@@ -79,6 +79,8 @@ So you can manage all ssh key access to your instances via IAM.
 
 - Set following script as [Instance Userdata](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/user-data.html)
 
+  - Ensure AWS CLI is installed, if not execute `pip install awscli`
+
   - Adjust `IAM_BUCKET='<S3Bucket>'` and `IAM_PRINCIPALS=<IAMPrincipals>`
 
     - `IAM_PRINCIPALS` is a comma separated list of principals in the form **groups/[GroupName]** and **users/[UserName]**
@@ -87,7 +89,8 @@ So you can manage all ssh key access to your instances via IAM.
       - Get Principals from AWS Systems Manager Parameter Store
 
         ```shell
-        IAM_PRINCIPALS=$(aws ssm get-parameter --name "<App>-iam-principals" --query 'Parameter.Value' --output text)
+        INSTANCE_IAM_ROLE=$(curl -fs http://169.254.169.254/latest/meta-data/iam/security-credentials/)
+        IAM_PRINCIPALS=$(aws ssm get-parameter --name "${INSTANCE_IAM_ROLE}-iam-principals" --query 'Parameter.Value' --output text)
         ```
 
   - Userdata Script
@@ -112,9 +115,9 @@ So you can manage all ssh key access to your instances via IAM.
     # add ssh user access logging && separated history per ssh user
     cat > /home/ec2-user/.ssh/rc <<'EOF'
     #!/bin/bash
-    export SSH_USER=${SSH_USER:-'unknown'}
-    logger -ip authpriv.notice -t sshd "Publickey owner is ${SSH_USER} for connection $(tmp=${SSH_CLIENT% *}; echo ${tmp// / port })"
-    export HISTFILE="$HOME/.history_${SSH_USER}" && export HISTTIMEFORMAT='%F %T '
+    export SSH_KEY_OWNER=${SSH_KEY_OWNER:-'unknown'}
+    logger -ip authpriv.notice -t sshd "Public key owner is ${SSH_KEY_OWNER} for connection $(tmp=${SSH_CLIENT% *}; echo ${tmp// / port })"
+    export HISTFILE="$HOME/.history_${SSH_KEY_OWNER}" && export HISTTIMEFORMAT='%F %T '
     EOF
     chmod a+x /home/ec2-user/.ssh/rc
 
