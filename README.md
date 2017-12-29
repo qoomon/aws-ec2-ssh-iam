@@ -78,13 +78,13 @@ This approach will sync public ssh keys for user and groups from IAM account to 
 
 - Set following script as [Instance Userdata](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/user-data.html)
 
-  - Ensure AWS CLI is installed, if not execute `pip install awscli`
+  - Ensure AWS CLI is installed, if not prepand `pip install awscli` to Userdata Script
 
-  - Adjust Userdata Script see below
+  - Configure Userdata Script
 
-    - Set `IAM_BUCKET` to bucket name where principals are stored e.g. _'company-iam'_
+    - Set `IAM_BUCKET`, the S§ bucket name where principals are stored e.g. _'company-iam'_
 
-    - Set `IAM_PRINCIPALS`, it is a comma separated list of principals in the form **groups/[GroupName]** and **users/[UserName]**
+    - Set `IAM_PRINCIPALS`, a comma separated list of principals in the form of **groups/[GroupName]** and **users/[UserName]**
     
       - **Examples**
 
