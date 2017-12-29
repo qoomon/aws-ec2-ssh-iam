@@ -96,8 +96,8 @@ This approach will sync public ssh keys for user and groups from IAM account to 
     EOF
     chmod a+x ${USER_HOME}/.ssh/authorized_keys.sh
 
-    # add ssh user access logging && separated history per ssh user
-    cat > ${USER_HOME}/.ssh/rc <<'EOF'
+    # configure ssh user access logging && separated history per ssh user
+    cat > /etc/sshrc <<'EOF'
     #!/bin/bash
     export SSH_KEY_OWNER=${SSH_KEY_OWNER:-'unknown'}
     logger -ip authpriv.notice -t sshd "Public key owner is ${SSH_KEY_OWNER} for connection $(tmp=${SSH_CLIENT% *}; echo ${tmp// / port })"
