@@ -83,7 +83,7 @@ This approach will sync public ssh keys for user and groups from IAM account to 
     USER_HOME='/home/ec2-user'
 
     # create script to return authorized ssh keys
-    cat > ${USER_HOME}/.ssh/authorized_keys.sh <<'EOF'
+    cat > /usr/local/bin/authorized_keys.sh <<'EOF'
     #!/bin/bash
 
     IAM_BUCKET='<S3Bucket>'
@@ -94,7 +94,7 @@ This approach will sync public ssh keys for user and groups from IAM account to 
       aws s3 cp s3://${IAM_BUCKET}/${iam_principal}/authorized_keys -
     done
     EOF
-    chmod a+x ${USER_HOME}/.ssh/authorized_keys.sh
+    chmod a+x /usr/local/bin/authorized_keys.sh
 
     # configure ssh user access logging
     cat > ${USER_HOME}/.ssh/rc <<'EOF'
