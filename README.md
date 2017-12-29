@@ -129,23 +129,21 @@ This approach will sync public ssh keys for user and groups from IAM account to 
       - **Examples**
 
         - Inline
-
+        
           ```shell
           IAM_PRINCIPALS='user/Admin'
           ```
 
         - From File - Single principal per line
-
+        
           ```shell
           IAM_PRINCIPALS=$(cat /home/ec2-user/.ssh/iam_principals | while read line; do echo -n "${line},"; done;)
           ```
-
-        - From AWS Parameter Store - Parameter Name constructed with IAM Instance Role `<IAM_ROLE>-iam-principals`
-
+          
+        - From AWS Parameter Store - Parameter Name constructed with IAM Instance Role `<IAM_ROLE>-iam-principals`
+        
           ```shell
           INSTANCE_IAM_ROLE=$(curl -fs http://169.254.169.254/latest/meta-data/iam/security-credentials/)
           INSTANCE_REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//')
           IAM_PRINCIPALS=$(aws ssm get-parameter --region "${INSTANCE_REGION}" --name "${INSTANCE_IAM_ROLE}-iam-principals" --query 'Parameter.Value' --output text)
           ```
-
-  
