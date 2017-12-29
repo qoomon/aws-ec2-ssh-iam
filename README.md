@@ -1,10 +1,9 @@
-# AWS IAM managed EC2 SSH access <img src="docs/aws-icon.png" width="64"/>
+# AWS IAM managed EC2 SSH access <img src="docs/aws-icon.png" height="128"/>
 
-This approach will sync public ssh keys for user and groups from IAM account to an S3 bucket as authorized_keys files.
-On the ssh daemon side AuthorizedKeysCommand is used to request authorized keys from S3 bucket on demand on ssh connection establishment.
-So you can manage all ssh key access to your instances via IAM.
+This approach will sync public ssh keys for user and groups from IAM account to an S3 bucket as authorized_keys files. On the ssh daemon side AuthorizedKeysCommand is used to request authorized keys from S3 bucket on demand on ssh connection establishment. So you can manage all ssh key access to your instances via IAM.
 
 <img src="docs/aws-iam-icon.png" height="128"/><img src="docs/arrow-right.png" height="128"/><img src="docs/aws-lambda-icon.png" height="128"/><img src="docs/arrow-right.png" height="128"/><img src="docs/aws-s3-icon.png" height="128"/><img src="docs/arrow-right.png" height="128"/><img src="docs/aws-ec2-icon.png" height="128"/>
+
 
 ## Setup AWS IAM Account
 
@@ -81,45 +80,66 @@ So you can manage all ssh key access to your instances via IAM.
 
   - Ensure AWS CLI is installed, if not execute `pip install awscli`
 
-  - Adjust `IAM_BUCKET='<S3Bucket>'` and `IAM_PRINCIPALS=<IAMPrincipals>`
+  - Adjust Userdata Script see below
 
-    - `IAM_PRINCIPALS` is a comma separated list of principals in the form **groups/[GroupName]** and **users/[UserName]**
-    - **Dynamic principals**
+    - Set `IAM_BUCKET` to bucket name where principals are stored e.g. _'company-iam'_
 
-      - Get Principals from AWS Systems Manager Parameter Store
+    - Set `IAM_PRINCIPALS`, it is a comma separated list of principals in the form **groups/[GroupName]** and **users/[UserName]**
+    
+      - **Examples**
 
-        ```shell
-        INSTANCE_IAM_ROLE=$(curl -fs http://169.254.169.254/latest/meta-data/iam/security-credentials/)
-        IAM_PRINCIPALS=$(aws ssm get-parameter --name "${INSTANCE_IAM_ROLE}-iam-principals" --query 'Parameter.Value' --output text)
-        ```
+        - **Static**
+
+          - Inline
+
+            ```shell
+            IAM_PRINCIPALS='user/Admin'
+            ```
+
+          - From File - single principal per line
+
+            ```shell
+            IAM_PRINCIPALS=$(cat /home/ec2-user/.ssh/iam_principals | while read line; do echo -n "${line},"; done;)
+            ```
+
+        - **Dynamic**
+
+          - AWS Parameter Store & IAM Instance Role
+
+            ```shell
+            INSTANCE_IAM_ROLE=$(curl -fs http://169.254.169.254/latest/meta-data/iam/security-credentials/)
+            INSTANCE_REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//')
+            IAM_PRINCIPALS=$(aws ssm get-parameter --region "${INSTANCE_REGION}" --name "${INSTANCE_IAM_ROLE}-iam-principals" --query 'Parameter.Value' --output text)
+            ```
 
   - Userdata Script
 
     ```shell
     #!/bin/bash
+    USER_HOME='/home/ec2-user'
 
     # create script to return authorized ssh keys
-    cat > /usr/local/bin/authorized_keys.sh <<'EOF'
+    cat > ${USER_HOME}/.ssh/authorized_keys.sh <<'EOF'
     #!/bin/bash
-    export AWS_DEFAULT_REGION=eu-central-1
 
     IAM_BUCKET='<S3Bucket>'
+
     IAM_PRINCIPALS='<IAMPrincipals>'
 
     for iam_principal in ${IAM_PRINCIPALS//,/ } ; do 
       aws s3 cp s3://${IAM_BUCKET}/${iam_principal}/authorized_keys -
     done
     EOF
-    chmod a+x /usr/local/bin/authorized_keys.sh
+    chmod a+x ${USER_HOME}/.ssh/authorized_keys.sh
 
     # add ssh user access logging && separated history per ssh user
-    cat > /home/ec2-user/.ssh/rc <<'EOF'
+    cat > ${USER_HOME}/.ssh/rc <<'EOF'
     #!/bin/bash
     export SSH_KEY_OWNER=${SSH_KEY_OWNER:-'unknown'}
     logger -ip authpriv.notice -t sshd "Public key owner is ${SSH_KEY_OWNER} for connection $(tmp=${SSH_CLIENT% *}; echo ${tmp// / port })"
     export HISTFILE="$HOME/.history_${SSH_KEY_OWNER}" && export HISTTIMEFORMAT='%F %T '
     EOF
-    chmod a+x /home/ec2-user/.ssh/rc
+    chmod a+x ${USER_HOME}/.ssh/rc
 
     # adjust ssh daemon config
     cat >> /etc/ssh/sshd_config <<'EOF' 
