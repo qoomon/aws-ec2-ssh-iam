@@ -101,6 +101,7 @@ This approach will sync public ssh keys for user and groups from IAM account to 
     #!/bin/bash
     export SSH_KEY_OWNER=${SSH_KEY_OWNER:-'unknown'}
     logger -ip authpriv.notice -t sshd "Public key owner is ${SSH_KEY_OWNER} for connection $(tmp=${SSH_CLIENT% *}; echo ${tmp// / port })"
+    echo "Connected as ${SSH_KEY_OWNER}"
     EOF
     chmod a+x ${USER_HOME}/.ssh/rc
 
