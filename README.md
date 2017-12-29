@@ -78,42 +78,6 @@ This approach will sync public ssh keys for user and groups from IAM account to 
 
 - Set following script as [Instance Userdata](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/user-data.html)
 
-  - Ensure AWS CLI is installed, if not prepand `pip install awscli` to Userdata Script
-
-  - Configure Userdata Script
-
-    - Set `IAM_BUCKET`, the S§ bucket name where principals are stored e.g. _'company-iam'_
-
-    - Set `IAM_PRINCIPALS`, a comma separated list of principals in the form of **groups/[GroupName]** and **users/[UserName]**
-    
-      - **Examples**
-
-        - **Static**
-
-          - Inline
-
-            ```shell
-            IAM_PRINCIPALS='user/Admin'
-            ```
-
-          - From File - single principal per line
-
-            ```shell
-            IAM_PRINCIPALS=$(cat /home/ec2-user/.ssh/iam_principals | while read line; do echo -n "${line},"; done;)
-            ```
-
-        - **Dynamic**
-
-          - AWS Parameter Store & IAM Instance Role
-
-            ```shell
-            INSTANCE_IAM_ROLE=$(curl -fs http://169.254.169.254/latest/meta-data/iam/security-credentials/)
-            INSTANCE_REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//')
-            IAM_PRINCIPALS=$(aws ssm get-parameter --region "${INSTANCE_REGION}" --name "${INSTANCE_IAM_ROLE}-iam-principals" --query 'Parameter.Value' --output text)
-            ```
-
-  - Userdata Script
-
     ```shell
     #!/bin/bash
     USER_HOME='/home/ec2-user'
@@ -153,3 +117,35 @@ This approach will sync public ssh keys for user and groups from IAM account to 
     # restart ssh daemon
     service sshd restart
     ```
+    
+  - Ensure AWS CLI is available on EC2 instance, if not prepand `pip install awscli` to Userdata Script
+
+  - Configure Userdata Script
+
+    - Set `IAM_BUCKET`, the S3 bucket name where principals are stored e.g. _'company-iam'_
+
+    - Set `IAM_PRINCIPALS`, a comma separated list in form of **groups/[GroupName]** and **users/[UserName]**
+    
+      - **Examples**
+
+        - Inline
+
+          ```shell
+          IAM_PRINCIPALS='user/Admin'
+          ```
+
+        - From File - Single principal per line
+
+          ```shell
+          IAM_PRINCIPALS=$(cat /home/ec2-user/.ssh/iam_principals | while read line; do echo -n "${line},"; done;)
+          ```
+
+        - From AWS Parameter Store - Parameter Name constructed with IAM Instance Role `<IAM_ROLE>-iam-principals`
+
+          ```shell
+          INSTANCE_IAM_ROLE=$(curl -fs http://169.254.169.254/latest/meta-data/iam/security-credentials/)
+          INSTANCE_REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//')
+          IAM_PRINCIPALS=$(aws ssm get-parameter --region "${INSTANCE_REGION}" --name "${INSTANCE_IAM_ROLE}-iam-principals" --query 'Parameter.Value' --output text)
+          ```
+
+  
