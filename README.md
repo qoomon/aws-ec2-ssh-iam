@@ -1,11 +1,16 @@
-# AWS IAM managed EC2 SSH access <img src="docs/aws-icon.png" height="128"/>
+# AWS IAM managed EC2 SSH access ![](docs/aws-icon.png)
 
 This approach will sync public ssh keys for user and groups from IAM account to an S3 bucket as authorized_keys files. On the ssh daemon side AuthorizedKeysCommand is used to request authorized keys from S3 bucket on demand on ssh connection establishment. So you can manage all ssh key access to your instances via IAM.
 
-<img src="docs/aws-iam-icon.png" height="128"/><img src="docs/arrow-right.png" height="128"/><img src="docs/aws-lambda-icon.png" height="128"/><img src="docs/arrow-right.png" height="128"/><img src="docs/aws-s3-icon.png" height="128"/><img src="docs/arrow-right.png" height="128"/><img src="docs/aws-ec2-icon.png" height="128"/>
-
+![](docs/aws-iam-icon.png)![](docs/arrow-right.png)![](docs/aws-lambda-icon.png)![](docs/arrow-right.png)![](docs/aws-s3-icon.png)![](docs/arrow-right.png)![](docs/aws-ec2-icon.png)
 
 ## Setup AWS IAM Account
+
+Create lambda function to sync SSH keys from IAM to S3 This function will also add IAM account as `SSH_KEY_OWNER` environment variable to public keys e.g.
+
+```
+environment="SSH_KEY_OWNER=john@example.org" ssh-rsa AAAAB3NzaC1yc2EAAAADAQA...dOXmwPQ== john@example.org
+```
 
 ### Preparation
 
@@ -43,9 +48,7 @@ This approach will sync public ssh keys for user and groups from IAM account to 
 
 ### Deploy
 
-- Deploy Lambda Function to Sync SSH Keys from IAM to S3
-
-  - `serverless deploy -v`
+`serverless deploy -v`
 
 ## Setup AWS Client Account
 
@@ -78,46 +81,56 @@ This approach will sync public ssh keys for user and groups from IAM account to 
 
 - Set following script as [Instance Userdata](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/user-data.html)
 
-    ```shell
-    #!/bin/bash
-    USER_HOME='/home/ec2-user'
+  ```shell
+  #!/bin/bash
 
-    # create script to return authorized ssh keys
-    cat > /usr/local/sbin/authorized_keys.sh <<'EOF'
-    #!/bin/bash
+  #### SSH Daemon Setup ####
 
+  # adjust ssh daemon config
+  cat >> /etc/ssh/sshd_config <<'EOF' 
+
+  LogLevel                   VERBOSE
+  PermitUserEnvironment      yes
+  AuthorizedKeysCommand      /usr/local/sbin/sshd_authorized_keys_command.sh
+  AuthorizedKeysCommandUser  nobody
+  EOF
+
+  # create authorized keys command
+  cat > /usr/local/sbin/sshd_authorized_keys_command.sh <<'EOF'
+  #!/bin/bash
+
+  SSH_USER=$1
+  SSH_USER_HOME=$(getent passwd ${SSH_USER} | cut -d: -f6)
+
+  if [ "$SSH_USER" == 'ec2-user' ]; then
     IAM_BUCKET='<S3Bucket>'
-
     IAM_PRINCIPALS='<IAMPrincipals>'
+  fi
 
-    for iam_principal in ${IAM_PRINCIPALS//,/ } ; do 
-      aws s3 cp s3://${IAM_BUCKET}/${iam_principal}/authorized_keys -
-    done
-    EOF
-    chmod a+x /usr/local/sbin/authorized_keys.sh
+  for iam_principal in ${IAM_PRINCIPALS//,/ } ; do 
+    aws s3 cp s3://${IAM_BUCKET}/${iam_principal}/authorized_keys -
+  done
 
-    # configure ssh user access logging
-    cat > ${USER_HOME}/.ssh/rc <<'EOF'
-    #!/bin/bash
-    export SSH_KEY_OWNER=${SSH_KEY_OWNER:-'unknown'}
-    logger -ip authpriv.notice -t sshd "Public key owner is ${SSH_KEY_OWNER} for connection $(tmp=${SSH_CLIENT% *}; echo ${tmp// / port })"
-    echo "Connected as ${SSH_KEY_OWNER}"
-    EOF
-    chmod a+x ${USER_HOME}/.ssh/rc
+  EOF
+  chmod a+x /usr/local/sbin/sshd_authorized_keys_command.sh
+  
+  # configure access logging
+  cat > /etc/ssh/sshrc <<'EOF'
+  #!/bin/bash
 
-    # adjust ssh daemon config
-    cat >> /etc/ssh/sshd_config <<'EOF' 
+  export SSH_KEY_OWNER=${SSH_KEY_OWNER:-'unknown'}
 
-    LogLevel                   VERBOSE
-    PermitUserEnvironment      yes
-    AuthorizedKeysCommand      /usr/local/sbin/authorized_keys.sh
-    AuthorizedKeysCommandUser  nobody
-    EOF
+  logger -ip authpriv.notice -t sshd "Public key owner is ${SSH_KEY_OWNER} for connection $(tmp=${SSH_CLIENT% *}; echo ${tmp// / port })"
+  echo "Publickey of ${SSH_KEY_OWNER}"
 
-    # restart ssh daemon
-    service sshd restart
-    ```
-    
+  EOF
+  chmod a+x /etc/ssh/sshrc
+  
+  # restart ssh daemon
+  service sshd restart
+
+  ```
+
   - Ensure AWS CLI is available on EC2 instance, if not prepand `pip install awscli` to Userdata Script
 
   - Configure Userdata Script
@@ -125,7 +138,7 @@ This approach will sync public ssh keys for user and groups from IAM account to 
     - Set `IAM_BUCKET`, the S3 bucket name where principals are stored e.g. _'company-iam'_
 
     - Set `IAM_PRINCIPALS`, a comma separated list in form of **groups/[GroupName]** and **users/[UserName]**
-    
+
       ##### Examples
 
       - Inline
