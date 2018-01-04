@@ -158,5 +158,5 @@ environment="SSH_KEY_OWNER=john@example.org" ssh-rsa AAAAB3NzaC1yc2EAAAADAQA...d
         ```shell
         INSTANCE_IAM_ROLE=$(curl -fs http://169.254.169.254/latest/meta-data/iam/security-credentials/)
         INSTANCE_REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//')
-        IAM_PRINCIPALS=$(aws ssm get-parameter --region "${INSTANCE_REGION}" --name "IAM/${INSTANCE_IAM_ROLE}/principals" --query 'Parameter.Value' --output text)
+        IAM_PRINCIPALS=$(aws ssm get-parameter --region "${INSTANCE_REGION}" --name "/IAM/${INSTANCE_IAM_ROLE}/principals" --query 'Parameter.Value' --output text)
         ```
