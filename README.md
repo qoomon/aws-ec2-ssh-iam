@@ -153,10 +153,28 @@ environment="SSH_KEY_OWNER=john@example.org" ssh-rsa AAAAB3NzaC1yc2EAAAADAQA...d
         IAM_PRINCIPALS=$(cat /home/ec2-user/.ssh/iam_principals | while read line; do echo -n "${line},"; done;)
         ```
 
-      - From AWS Parameter Store - Parameter Name constructed with IAM Instance Role `<IAM_ROLE>-iam-principals`
-
+      - From AWS Parameter Store
         ```shell
         INSTANCE_IAM_ROLE=$(curl -fs http://169.254.169.254/latest/meta-data/iam/security-credentials/)
         INSTANCE_REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone | sed 's/.$//')
         IAM_PRINCIPALS=$(aws ssm get-parameter --region "${INSTANCE_REGION}" --name "/IAM/${INSTANCE_IAM_ROLE}/principals" --query 'Parameter.Value' --output text)
         ```
+        - Create Prinicpals Parameter `/IAM/<IAM_INSTANCE_ROLE>/principals` within AWS Parameter Store
+        - Create Inline Policy for IAM Instance Role to grant access to AWS Parameter Store
+          ```json
+          {
+              "Version": "2012-10-17",
+              "Statement": [
+                  {
+                      "Effect": "Allow",
+                      "Action": [
+                          "ssm:GetParameter",
+                          "ssm:GetParameters"
+                      ],
+                      "Resource": [
+                          "arn:aws:ssm:eu-central-1:*:parameter/IAM/<IAM_INSTANCE_ROLE>/*"
+                      ]
+                  }
+              ]
+          }
+          ```
