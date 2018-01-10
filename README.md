@@ -132,7 +132,7 @@ environment="SSH_KEY_OWNER=john@example.org" ssh-rsa AAAAB3NzaC1yc2EAAAADAQA...d
   ```
 
   - Ensure AWS CLI is available on EC2 instance, if not prepand `pip install awscli` to Userdata Script
-
+  - Ensure IAM Instance Rolle has acces to IAM S3 Bucket (see above)
   - Configure Userdata Script
 
     - Set `IAM_BUCKET`, the S3 bucket name where principals are stored e.g. _'company-iam'_
