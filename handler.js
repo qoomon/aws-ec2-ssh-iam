@@ -11,18 +11,16 @@ console.log('s3Bucket: ', s3Bucket);
 let getAuthorizedKeysForUser = (userName) => {
   return IAM.listSSHPublicKeys({
     UserName: userName
-  }).promise().then(function(data) {
+  }).promise().then(data => {
     return Promise.all(data.SSHPublicKeys.filter(key => key.Status == 'Active')
       .map(key => {
         return IAM.getSSHPublicKey({
-            Encoding: 'SSH',
-            UserName: key.UserName,
-            SSHPublicKeyId: key.SSHPublicKeyId
-          }).promise()
-          .then(function(data) {
-            return 'environment="SSH_KEY_OWNER=' + key.UserName + '"' +
-              ' ' + data.SSHPublicKey.SSHPublicKeyBody + ' ' + key.UserName;
-          });
+          Encoding: 'SSH',
+          UserName: key.UserName,
+          SSHPublicKeyId: key.SSHPublicKeyId
+        }).promise().then(data => {
+          return 'environment="SSH_KEY_OWNER=' + key.UserName + '"' + ' ' + data.SSHPublicKey.SSHPublicKeyBody + ' ' + key.UserName;
+        });
       }));
   });
 };
@@ -30,7 +28,7 @@ let getAuthorizedKeysForUser = (userName) => {
 let getAuthorizedKeysForGroup = (groupName) => {
   return IAM.getGroup({
     GroupName: groupName
-  }).promise().then(function(data) {
+  }).promise().then(data => {
     return Promise.all(data.Users.map(user => {
         return getAuthorizedKeysForUser(user.UserName);
       }))
@@ -50,19 +48,12 @@ let getAuthorizedKeysForPrincipal = (principal) => {
   }
 };
 
-let deletePricicipalsKeys = (principalList) => {
-  if (principalList.length) {
-    principalList.forEach(principal => console.log("Delete authorized keys for principal: " + principal));
-    return S3.deleteObjects({
-      Bucket: s3Bucket,
-      Delete: {
-        Objects: principalList.map(principal => ({
-          Key: principal + '/authorized_keys'
-        }))
-      }
-    });
-  }
-  return [];
+let deletePricicipalKeys = (principal) => {
+  console.log("Delete authorized keys for principal: " + principal);
+  return S3.deleteObject({
+    Bucket: s3Bucket,
+    Key: principal + '/authorized_keys'
+  }).promise();
 };
 
 let uploadPrincipalKeys = (principal, authorizedKeys) => {
@@ -74,16 +65,16 @@ let uploadPrincipalKeys = (principal, authorizedKeys) => {
   }).promise();
 };
 
-let listPricipalFromS3 = () => {
-  let userPricipalListPromise = S3.listObjects({
-      Bucket: s3Bucket,
-      Delimiter: '/',
-      Prefix: 'users/'
-    }).promise().then(data => {
-      return data.CommonPrefixes.map(prefix => prefix.Prefix.replace(new RegExp(data.Delimiter + '$'), ''));
-    });
+let listPrincipalFromS3 = () => {
+  let userPrincipalListPromise = S3.listObjects({
+    Bucket: s3Bucket,
+    Delimiter: '/',
+    Prefix: 'users/'
+  }).promise().then(data => {
+    return data.CommonPrefixes.map(prefix => prefix.Prefix.replace(new RegExp(data.Delimiter + '$'), ''));
+  });
 
-  let groupPricipalListPromise = S3.listObjects({
+  let groupPrincipalListPromise = S3.listObjects({
     Bucket: s3Bucket,
     Delimiter: '/',
     Prefix: 'groups/'
@@ -91,39 +82,40 @@ let listPricipalFromS3 = () => {
     return data.CommonPrefixes.map(prefix => prefix.Prefix.replace(new RegExp(data.Delimiter + '$'), ''));
   });
 
-  return Promise.all([userPricipalListPromise, groupPricipalListPromise])
+  return Promise.all([userPrincipalListPromise, groupPrincipalListPromise])
     .then(resultList => [].concat(...resultList));
 };
 
-
-let listPricipalFromIAM = () => {
-  let userPricipalListPromise = IAM.listUsers({}).promise().then(data => {
+let listPrincipalFromIAM = () => {
+  let userPrincipalListPromise = IAM.listUsers({}).promise().then(data => {
     return data.Users.map(user => 'users/' + user.UserName);
   });
 
-  let groupPricipalListPromise = IAM.listGroups({}).promise().then(data => {
+  let groupPrincipalListPromise = IAM.listGroups({}).promise().then(data => {
     return data.Groups.map(group => 'groups/' + group.GroupName);
   });
 
-  return Promise.all([userPricipalListPromise, groupPricipalListPromise])
+  return Promise.all([userPrincipalListPromise, groupPrincipalListPromise])
     .then(resultList => [].concat(...resultList));
 };
 
-
 module.exports.syncSSHKeysToS3 = (event, context, callback) => {
-  let pricipalListS3Promise = listPricipalFromS3();
-  let pricipalListIAMPromise = listPricipalFromIAM();
+  let principalListS3Promise = listPrincipalFromS3();
+  let principalListIAMPromise = listPrincipalFromIAM();
+  let principalListS3DeletePromise = Promise.all([principalListS3Promise, principalListIAMPromise])
+    .then(([principalListS3, principalListIAM]) => {
+      return principalListS3.filter(principal => !principalListIAM.includes(principal));
+    });
 
   // Delete principals in S3 not present in IAM
-  let deleteUserKeysPromise = Promise.all([pricipalListS3Promise, pricipalListIAMPromise])
-    .then(resultList => {
-      let [principalListS3, principalListIAM] = resultList;
-      return principalListS3.filter(principal => !principalListIAM.includes(principal));
-    })
-    .then(principalListToDelete => deletePricicipalsKeys(principalListToDelete));
+  let deleteUserKeysPromise = principalListS3DeletePromise.then(principals => {
+    return Promise.all(principals.map(principal => {
+      return deletePricicipalKeys(principal);
+    }));
+  });
 
-  // Update pricipals authorized keys in S3 from IAM principals keys
-  let uploadUserKeysPromise = pricipalListIAMPromise.then(function(principals) {
+  // Update principals authorized keys in S3 from IAM principals keys
+  let uploadUserKeysPromise = principalListIAMPromise.then(principals => {
     return Promise.all(principals.map(principal => {
       return getAuthorizedKeysForPrincipal(principal).then(authorizedKeys => {
         return uploadPrincipalKeys(principal, authorizedKeys);
