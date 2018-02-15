@@ -1,5 +1,7 @@
 'use strict';
 
+var Util = require('util');
+
 let AWS = require('aws-sdk');
 let S3 = new AWS.S3();
 let IAM = new AWS.IAM();
@@ -8,32 +10,42 @@ let IAM = new AWS.IAM();
 let s3Bucket = process.env.S3_BUCKET;
 console.log('s3Bucket: ', s3Bucket);
 
+let authorizedKeysForUserCache = {};
 let getAuthorizedKeysForUser = (userName) => {
+  if (authorizedKeysForUserCache[userName]) {
+    return Promise.resolve(authorizedKeysForUserCache[userName]);
+  }
   return IAM.listSSHPublicKeys({
-    UserName: userName
-  }).promise().then(data => {
-    return Promise.all(data.SSHPublicKeys.filter(key => key.Status == 'Active')
-      .map(key => {
-        return IAM.getSSHPublicKey({
-          Encoding: 'SSH',
-          UserName: key.UserName,
-          SSHPublicKeyId: key.SSHPublicKeyId
-        }).promise().then(data => {
-          return 'environment="SSH_KEY_OWNER=' + key.UserName + '"' + ' ' + data.SSHPublicKey.SSHPublicKeyBody + ' ' + key.UserName;
-        });
-      }));
-  });
+      UserName: userName
+    }).promise()
+    .then(data => {
+      return Promise.all(data.SSHPublicKeys.filter(key => key.Status == 'Active')
+        .map(key => {
+          return IAM.getSSHPublicKey({
+              Encoding: 'SSH',
+              UserName: key.UserName,
+              SSHPublicKeyId: key.SSHPublicKeyId
+            }).promise()
+            .then(data => {
+              return Util.format('environments="SSH_KEY_OWNER=%s" %s %s', key.UserName, data.SSHPublicKey.SSHPublicKeyBody, key.UserName);
+            });
+        }));
+    })
+    .then(keys => {
+      authorizedKeysForUserCache[userName] = keys;
+      return keys;
+    });
 };
 
 let getAuthorizedKeysForGroup = (groupName) => {
   return IAM.getGroup({
-    GroupName: groupName
-  }).promise().then(data => {
-    return Promise.all(data.Users.map(user => {
+      GroupName: groupName
+    }).promise()
+    .then(data => Promise.all(data.Users
+      .map(user => {
         return getAuthorizedKeysForUser(user.UserName);
-      }))
-      .then(userKeys => [].concat(...userKeys)); // flatten user keys
-  });
+      })))
+    .then(userKeys => [].concat(...userKeys)); // flatten user keys;
 };
 
 let getAuthorizedKeysForPrincipal = (principal) => {
@@ -67,20 +79,22 @@ let uploadPrincipalKeys = (principal, authorizedKeys) => {
 
 let listPrincipalFromS3 = () => {
   let userPrincipalListPromise = S3.listObjects({
-    Bucket: s3Bucket,
-    Delimiter: '/',
-    Prefix: 'users/'
-  }).promise().then(data => {
-    return data.CommonPrefixes.map(prefix => prefix.Prefix.replace(new RegExp(data.Delimiter + '$'), ''));
-  });
+      Bucket: s3Bucket,
+      Delimiter: '/',
+      Prefix: 'users/'
+    }).promise()
+    .then(data => {
+      return data.CommonPrefixes.map(prefix => prefix.Prefix.replace(new RegExp(data.Delimiter + '$'), ''));
+    });
 
   let groupPrincipalListPromise = S3.listObjects({
-    Bucket: s3Bucket,
-    Delimiter: '/',
-    Prefix: 'groups/'
-  }).promise().then(data => {
-    return data.CommonPrefixes.map(prefix => prefix.Prefix.replace(new RegExp(data.Delimiter + '$'), ''));
-  });
+      Bucket: s3Bucket,
+      Delimiter: '/',
+      Prefix: 'groups/'
+    }).promise()
+    .then(data => {
+      return data.CommonPrefixes.map(prefix => prefix.Prefix.replace(new RegExp(data.Delimiter + '$'), ''));
+    });
 
   return Promise.all([userPrincipalListPromise, groupPrincipalListPromise])
     .then(resultList => [].concat(...resultList));
@@ -108,20 +122,23 @@ module.exports.syncSSHKeysToS3 = (event, context, callback) => {
     });
 
   // Delete principals in S3 not present in IAM
-  let deleteUserKeysPromise = principalListS3DeletePromise.then(principals => {
-    return Promise.all(principals.map(principal => {
-      return deletePricicipalKeys(principal);
-    }));
-  });
+  let deleteUserKeysPromise = principalListS3DeletePromise
+    .then(principals => {
+      return Promise.all(principals.map(principal => {
+        return deletePricicipalKeys(principal);
+      }));
+    });
 
   // Update principals authorized keys in S3 from IAM principals keys
-  let uploadUserKeysPromise = principalListIAMPromise.then(principals => {
-    return Promise.all(principals.map(principal => {
-      return getAuthorizedKeysForPrincipal(principal).then(authorizedKeys => {
-        return uploadPrincipalKeys(principal, authorizedKeys);
-      });
-    }));
-  });
+  let uploadUserKeysPromise = principalListIAMPromise
+    .then(principals => {
+      return Promise.all(principals.map(principal => {
+        return getAuthorizedKeysForPrincipal(principal)
+          .then(authorizedKeys => {
+            return uploadPrincipalKeys(principal, authorizedKeys);
+          });
+      }));
+    });
 
   // wait for sync is completed
   Promise.all([deleteUserKeysPromise, uploadUserKeysPromise])
