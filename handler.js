@@ -27,7 +27,7 @@ let getAuthorizedKeysForUser = (userName) => {
               SSHPublicKeyId: key.SSHPublicKeyId
             }).promise()
             .then(data => {
-              return Util.format('environments="SSH_KEY_OWNER=%s" %s %s', key.UserName, data.SSHPublicKey.SSHPublicKeyBody, key.UserName);
+              return Util.format('environment="SSH_KEY_OWNER=%s" %s %s', key.UserName, data.SSHPublicKey.SSHPublicKeyBody, key.UserName);
             });
         }));
     })
