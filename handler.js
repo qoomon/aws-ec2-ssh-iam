@@ -10,6 +10,7 @@ let IAM = new AWS.IAM();
 let s3Bucket = process.env.S3_BUCKET;
 console.log('s3Bucket: ', s3Bucket);
 
+let authorizedKeysForUserCache = {};
 let getAuthorizedKeysForUser = (userName) => {
   if (authorizedKeysForUserCache[userName]) {
     return Promise.resolve(authorizedKeysForUserCache[userName]);
@@ -113,7 +114,7 @@ let listPrincipalFromIAM = () => {
 };
 
 module.exports.syncSSHKeysToS3 = (event, context, callback) => {
-  let authorizedKeysForUserCache = {};
+  authorizedKeysForUserCache = {};
   let principalListS3Promise = listPrincipalFromS3();
   let principalListIAMPromise = listPrincipalFromIAM();
   let principalListS3DeletePromise = Promise.all([principalListS3Promise, principalListIAMPromise])
