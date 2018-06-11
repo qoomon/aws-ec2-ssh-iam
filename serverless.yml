@@ -39,5 +39,5 @@ functions:
     environment:
       S3_BUCKET: <S3Bucket>
     events:            
-      - schedule: rate(5 minute)
+      - schedule: rate(5 minutes)
     
