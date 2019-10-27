@@ -1,3 +1,6 @@
+# ⚠️ This approach is deprecated in favour of SSH over AWS SSM even without adding SSH port to security group
+# ℹ️ See my [SSH proxy script](https://gist.github.com/qoomon/fcf2c85194c55aee34b78ddcaa9e83a1) to tranparently connect to your EC2 instances vie AWS SSM session.
+
 # AWS IAM managed EC2 SSH access ![](docs/aws-icon.png)
 
 This approach will sync public ssh keys for user and groups from IAM account to an S3 bucket as authorized_keys files. On the ssh daemon side AuthorizedKeysCommand is used to request authorized keys from S3 bucket on demand on ssh connection establishment. So you can manage all ssh key access to your instances via IAM.
